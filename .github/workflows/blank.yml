@@ -1,4 +1,4 @@
-name: Build Release APK
+name: Build Debug APK
 on: [push]
 
 jobs:
@@ -13,18 +13,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Automatically downloads the correct wrapper machinery straight into your main directory
       - name: Validate and Download Gradle Wrapper
         run: gradle wrapper
 
-      - name: Build Release APK
+      - name: Build Debug APK
         run: |
           chmod +x gradlew
           sed -i 's/\r$//' gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PPF-Release-APK
-          path: app/build/outputs/apk/release/*.apk
+          name: PPF-Debug-APK
+          path: app/build/outputs/apk/debug/*.apk
