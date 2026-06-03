@@ -16,12 +16,11 @@ jobs:
       - name: Validate and Download Gradle Wrapper
         run: gradle wrapper
 
-      - name: Build Unsigned Debug APK
+      - name: Build Debug APK
         run: |
           chmod +x gradlew
           sed -i 's/\r$//' gradlew
-          # 🌟 This extra flag forces Gradle to bypass the strict custom signing configurations entirely:
-          ./gradlew assembleDebug -x :app:validateSigningDebug
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
