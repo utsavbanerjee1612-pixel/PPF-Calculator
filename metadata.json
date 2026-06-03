@@ -1,0 +1,6 @@
+{
+  "name": "PPF Calculator",
+  "description": "A high-fidelity modern Public Provident Fund (PPF) Calculator featuring monthly and lumpsum models with dynamic annual cashflow analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
