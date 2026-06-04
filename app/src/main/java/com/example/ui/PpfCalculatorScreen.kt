@@ -202,19 +202,12 @@ fun PpfAppBarView(
             .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = {}) {
-            Icon(
-                imageVector = Icons.Filled.ArrowBack,
-                contentDescription = "Navigate back",
-                tint = MaterialTheme.colorScheme.onBackground
-            )
-        }
         Text(
             text = "PPF Wealth",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Normal,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f).padding(start = 4.dp)
+            modifier = Modifier.weight(1f).padding(start = 16.dp)
         )
         IconButton(
             onClick = onToggleTheme,
@@ -1072,31 +1065,6 @@ fun PpfBottomNavigationBar() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
-
-                // Profile tab (Muted/Inactive opacity 0.6)
-                Column(
-                    modifier = Modifier.clickable { },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = "Profile icon",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Text(
-                        text = "Profile",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
             }
         }
     }
@@ -1110,4 +1078,3 @@ fun formatCurrency(amount: Double): String {
         "₹" + String.format("%,.0f", amount)
     }
 }
-
