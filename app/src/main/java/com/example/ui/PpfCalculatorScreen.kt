@@ -1078,3 +1078,4 @@ fun formatCurrency(amount: Double): String {
         "₹" + String.format("%,.0f", amount)
     }
 }
+
