@@ -63,6 +63,7 @@ fun PpfCalculatorScreen(
     var isBreakdownCollapsed by remember { mutableStateOf(false) }
     var showValidationErrorDialog by remember { mutableStateOf(false) }
     var validationErrorMessage by remember { mutableStateOf("") }
+    var validationErrorTitle by remember { mutableStateOf("Invalid Amount") }
 
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -136,6 +137,7 @@ fun PpfCalculatorScreen(
                                 if (contributionType == ContributionType.LUMPSUM) {
                                     val amount = lumpsumAmountInput.toIntOrNull()
                                     if (amount == null || amount < 500 || amount > 150000 || amount % 100 != 0) {
+                                        validationErrorTitle = "Invalid Amount"
                                         validationErrorMessage = "Total annual amount in PPF need to be between ₹500 and ₹150000. Please renter the value."
                                         showValidationErrorDialog = true
                                     } else {
@@ -146,6 +148,7 @@ fun PpfCalculatorScreen(
                                     if (!isCustomMonthlyEnabled) {
                                         val amount = flatMonthlyInput.toIntOrNull()
                                         if (amount == null || amount < 100 || amount > 12500 || amount % 100 != 0) {
+                                            validationErrorTitle = "Invalid Amount"
                                             validationErrorMessage = "Total monthly amount in PPF need to be between ₹100 and ₹12500. Please re-enter the value."
                                             showValidationErrorDialog = true
                                         } else {
@@ -153,8 +156,21 @@ fun PpfCalculatorScreen(
                                             viewModel.calculatePPF()
                                         }
                                     } else {
-                                        focusManager.clearFocus()
-                                        viewModel.calculatePPF()
+                                        val individualValid = monthlyContributions.all { contrib ->
+                                            val rounded = Math.round(contrib)
+                                            contrib >= 0.0 && contrib <= 150000.0 && (rounded % 100 == 0L)
+                                        }
+                                        val totalSum = monthlyContributions.sum()
+                                        val totalValid = totalSum >= 500.0 && totalSum <= 150000.0
+
+                                        if (!individualValid || !totalValid) {
+                                            validationErrorTitle = "Invalid Distribution"
+                                            validationErrorMessage = "Total monthly amount in PPF in a single month needs to be between ₹100 and ₹150000 and total annual amount between ₹500 and ₹150000. Please re-enter the value."
+                                            showValidationErrorDialog = true
+                                        } else {
+                                            focusManager.clearFocus()
+                                            viewModel.calculatePPF()
+                                        }
                                     }
                                 }
                             }
@@ -217,7 +233,7 @@ fun PpfCalculatorScreen(
         AlertDialog(
             onDismissRequest = { showValidationErrorDialog = false },
             title = {
-                Text(text = "Invalid Amount")
+                Text(text = validationErrorTitle)
             },
             text = {
                 Text(text = validationErrorMessage)
@@ -617,7 +633,7 @@ fun DynamicInvestmentCard(
                                 
                                 Slider(
                                     value = currentVal.toFloat().coerceIn(0f, 25000f),
-                                    onValueChange = { onMonthlyValueChange(idx, it.toDouble()) },
+                                    onValueChange = { onMonthlyValueChange(idx, (Math.round(it / 100.0) * 100.0)) },
                                     valueRange = 0f..25000f,
                                     modifier = Modifier.fillMaxWidth()
                                 )
