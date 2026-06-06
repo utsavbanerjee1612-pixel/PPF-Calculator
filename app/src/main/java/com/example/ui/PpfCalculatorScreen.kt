@@ -61,6 +61,7 @@ fun PpfCalculatorScreen(
 
     val focusManager = LocalFocusManager.current
     var isBreakdownCollapsed by remember { mutableStateOf(false) }
+    var showValidationErrorDialog by remember { mutableStateOf(false) }
 
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -131,8 +132,18 @@ fun PpfCalculatorScreen(
                         ActionButtonRow(
                             errorMessage = errorMessage,
                             onCalculate = {
-                                focusManager.clearFocus()
-                                viewModel.calculatePPF()
+                                if (contributionType == ContributionType.LUMPSUM) {
+                                    val amount = lumpsumAmountInput.toIntOrNull()
+                                    if (amount == null || amount < 500 || amount > 150000 || amount % 100 != 0) {
+                                        showValidationErrorDialog = true
+                                    } else {
+                                        focusManager.clearFocus()
+                                        viewModel.calculatePPF()
+                                    }
+                                } else {
+                                    focusManager.clearFocus()
+                                    viewModel.calculatePPF()
+                                }
                             }
                         )
                     }
@@ -187,6 +198,27 @@ fun PpfCalculatorScreen(
             // Bottom Navigation Bar (Material 3 Mock)
             PpfBottomNavigationBar()
         }
+    }
+
+    if (showValidationErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showValidationErrorDialog = false },
+            title = {
+                Text(text = "Invalid Amount")
+            },
+            text = {
+                Text(text = "Total annual amount in PPF need to be between ₹500 and ₹150000. Please renter the value.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showValidationErrorDialog = false },
+                    modifier = Modifier.testTag("dialog_ok_button")
+                ) {
+                    Text("Ok")
+                }
+            },
+            modifier = Modifier.testTag("validation_alert_dialog")
+        )
     }
 }
 
@@ -1078,4 +1110,3 @@ fun formatCurrency(amount: Double): String {
         "₹" + String.format("%,.0f", amount)
     }
 }
-
