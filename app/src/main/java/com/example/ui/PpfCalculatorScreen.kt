@@ -156,11 +156,22 @@ fun PpfCalculatorScreen(
                                             viewModel.calculatePPF()
                                         }
                                     } else {
-                                        val individualValid = monthlyContributions.all { contrib ->
-                                            val rounded = Math.round(contrib)
-                                            contrib >= 0.0 && contrib <= 150000.0 && (rounded % 100 == 0L)
+                                        // First, round all individual monthly investments to nearest 100
+                                        val roundedContributions = monthlyContributions.map { contrib ->
+                                            (Math.round(contrib / 100.0) * 100.0)
                                         }
-                                        val totalSum = monthlyContributions.sum()
+                                        // Update the viewmodel so the UI instantly updates to the rounded numbers
+                                        roundedContributions.forEachIndexed { idx, rv ->
+                                            if (rv != monthlyContributions[idx]) {
+                                                viewModel.updateMonthlyContribution(idx, rv)
+                                            }
+                                        }
+
+                                        // Perform validations on the rounded values
+                                        val individualValid = roundedContributions.all { contrib ->
+                                            contrib >= 0.0 && contrib <= 150000.0
+                                        }
+                                        val totalSum = roundedContributions.sum()
                                         val totalValid = totalSum >= 500.0 && totalSum <= 150000.0
 
                                         if (!individualValid || !totalValid) {
@@ -603,6 +614,15 @@ fun DynamicInvestmentCard(
 
                         monthsLabel.forEachIndexed { idx, label ->
                             val currentVal = monthlyContributions.getOrElse(idx) { 0.0 }
+                            
+                            // A local state to track direct typing cleanly, keyed on currentVal
+                            var textState by remember(currentVal) {
+                                val initialText = if (currentVal == 0.0) "" else currentVal.toInt().toString()
+                                mutableStateOf(initialText)
+                            }
+                            // Visual hint if current user typed value is not a multiple of 100
+                            val isMultipleOf100 = (Math.round(currentVal) % 100L == 0L)
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -617,25 +637,64 @@ fun DynamicInvestmentCard(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = formatCurrency(currentVal),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                    Column(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (!isMultipleOf100 && textState.isNotEmpty()) {
+                                            Text(
+                                                text = "Will be rounded to nearest 100",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    OutlinedTextField(
+                                        value = textState,
+                                        onValueChange = { newVal ->
+                                            val digits = newVal.filter { it.isDigit() }
+                                            textState = digits
+                                            val parsed = digits.toDoubleOrNull() ?: 0.0
+                                            onMonthlyValueChange(idx, parsed)
+                                        },
+                                        modifier = Modifier
+                                            .width(130.dp)
+                                            .height(52.dp)
+                                            .testTag("monthly_input_$label"),
+                                        placeholder = { Text("0") },
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Number,
+                                            imeAction = ImeAction.Next
+                                        ),
+                                        singleLine = true,
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent,
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                        )
                                     )
                                 }
                                 
+                                Spacer(modifier = Modifier.height(6.dp))
+
                                 Slider(
-                                    value = currentVal.toFloat().coerceIn(0f, 25000f),
-                                    onValueChange = { onMonthlyValueChange(idx, (Math.round(it / 100.0) * 100.0)) },
-                                    valueRange = 0f..25000f,
-                                    modifier = Modifier.fillMaxWidth()
+                                    value = currentVal.toFloat().coerceIn(0f, 150000f),
+                                    onValueChange = { sliderVal ->
+                                        val snapped = (Math.round(sliderVal / 100.0) * 100.0)
+                                        onMonthlyValueChange(idx, snapped)
+                                    },
+                                    valueRange = 0f..150000f,
+                                    modifier = Modifier.fillMaxWidth().testTag("monthly_slider_$label")
                                 )
                             }
                         }
