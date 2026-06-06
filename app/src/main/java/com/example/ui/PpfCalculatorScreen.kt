@@ -62,6 +62,7 @@ fun PpfCalculatorScreen(
     val focusManager = LocalFocusManager.current
     var isBreakdownCollapsed by remember { mutableStateOf(false) }
     var showValidationErrorDialog by remember { mutableStateOf(false) }
+    var validationErrorMessage by remember { mutableStateOf("") }
 
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -135,14 +136,26 @@ fun PpfCalculatorScreen(
                                 if (contributionType == ContributionType.LUMPSUM) {
                                     val amount = lumpsumAmountInput.toIntOrNull()
                                     if (amount == null || amount < 500 || amount > 150000 || amount % 100 != 0) {
+                                        validationErrorMessage = "Total annual amount in PPF need to be between ₹500 and ₹150000. Please renter the value."
                                         showValidationErrorDialog = true
                                     } else {
                                         focusManager.clearFocus()
                                         viewModel.calculatePPF()
                                     }
                                 } else {
-                                    focusManager.clearFocus()
-                                    viewModel.calculatePPF()
+                                    if (!isCustomMonthlyEnabled) {
+                                        val amount = flatMonthlyInput.toIntOrNull()
+                                        if (amount == null || amount < 100 || amount > 12500 || amount % 100 != 0) {
+                                            validationErrorMessage = "Total monthly amount in PPF need to be between ₹100 and ₹12500. Please re-enter the value."
+                                            showValidationErrorDialog = true
+                                        } else {
+                                            focusManager.clearFocus()
+                                            viewModel.calculatePPF()
+                                        }
+                                    } else {
+                                        focusManager.clearFocus()
+                                        viewModel.calculatePPF()
+                                    }
                                 }
                             }
                         )
@@ -207,7 +220,7 @@ fun PpfCalculatorScreen(
                 Text(text = "Invalid Amount")
             },
             text = {
-                Text(text = "Total annual amount in PPF need to be between ₹500 and ₹150000. Please re-enter the value")
+                Text(text = validationErrorMessage)
             },
             confirmButton = {
                 TextButton(
