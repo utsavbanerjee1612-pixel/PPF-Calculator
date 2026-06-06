@@ -207,7 +207,7 @@ fun PpfCalculatorScreen(
                 Text(text = "Invalid Amount")
             },
             text = {
-                Text(text = "Total annual amount in PPF need to be between ₹500 and ₹150000. Please renter the value.")
+                Text(text = "Total annual amount in PPF need to be between ₹500 and ₹150000. Please re-enter the value")
             },
             confirmButton = {
                 TextButton(
