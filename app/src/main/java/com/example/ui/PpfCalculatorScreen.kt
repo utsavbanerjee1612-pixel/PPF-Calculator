@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.sp
 import com.example.model.ContributionType
 import com.example.model.PpfResult
 import com.example.model.YearlyBreakdown
-import com.example.model.AppTheme
 import com.example.viewmodel.PpfViewModel
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,8 +61,8 @@ fun PpfCalculatorScreen(
 
     val systemDark = isSystemInDarkTheme()
     val isDark = when (selectedTheme) {
-        "LIGHT" -> false
-        "DARK" -> true
+        "Light" -> false
+        "Dark" -> true
         else -> systemDark
     }
 
@@ -286,9 +285,9 @@ fun PpfCalculatorScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val options = listOf(
-                        AppTheme.LIGHT to "Light Mode",
-                        AppTheme.DARK to "Dark Mode",
-                        AppTheme.SYSTEM to "System Default"
+                        "Light" to "Light Mode",
+                        "Dark" to "Dark Mode",
+                        "System" to "System Default"
                     )
                     options.forEach { (optionTheme, label) ->
                         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -298,16 +297,16 @@ fun PpfCalculatorScreen(
                                     .height(40.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
-                                        onThemeSelected(optionTheme.name)
+                                        onThemeSelected(optionTheme)
                                         showThemeSelectorDialog = false
                                     }
                                     .padding(horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
-                                    selected = (selectedTheme == optionTheme.name),
+                                    selected = (selectedTheme == optionTheme),
                                     onClick = {
-                                        onThemeSelected(optionTheme.name)
+                                        onThemeSelected(optionTheme)
                                         showThemeSelectorDialog = false
                                     },
                                     modifier = Modifier.testTag("theme_radio_$label")
