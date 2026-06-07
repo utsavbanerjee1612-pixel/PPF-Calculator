@@ -45,11 +45,9 @@ fun PpfCalculatorScreen(
     onThemeSelected: (String) -> Unit,
     multiYearContributions: Map<Int, List<Int>>,
     onContributionChanged: (yearIndex: Int, monthIndex: Int, updatedValue: Int) -> Unit,
+    onCalculateClicked: (Map<Int, List<Int>>) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val mainActivity = context as? com.example.MainActivity
-
     val contributionType by viewModel.contributionType.collectAsState()
     val yearsInput by viewModel.yearsInput.collectAsState()
     val interestRateInput by viewModel.interestRateInput.collectAsState()
@@ -159,7 +157,7 @@ fun PpfCalculatorScreen(
                                         showValidationErrorDialog = true
                                     } else {
                                         focusManager.clearFocus()
-                                        viewModel.calculatePPF()
+                                        onCalculateClicked(multiYearContributions)
                                     }
                                 } else {
                                     if (!isCustomMonthlyEnabled) {
@@ -170,7 +168,7 @@ fun PpfCalculatorScreen(
                                             showValidationErrorDialog = true
                                         } else {
                                             focusManager.clearFocus()
-                                            viewModel.calculatePPF()
+                                            onCalculateClicked(multiYearContributions)
                                         }
                                     } else {
                                         // Dynamic Multi-year validation
@@ -207,11 +205,7 @@ fun PpfCalculatorScreen(
                                             showValidationErrorDialog = true
                                         } else {
                                             focusManager.clearFocus()
-                                            if (mainActivity != null) {
-                                                mainActivity.calculatePPF(multiYearContributions)
-                                            } else {
-                                                viewModel.calculatePPF(multiYearContributions)
-                                            }
+                                            onCalculateClicked(multiYearContributions)
                                         }
                                     }
                                 }
