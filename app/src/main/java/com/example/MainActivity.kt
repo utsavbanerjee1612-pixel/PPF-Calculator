@@ -1,17 +1,20 @@
 package com.example
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.model.AppTheme
 import com.example.ui.PpfCalculatorScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.PpfViewModel
@@ -23,26 +26,26 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     setContent {
-      val appTheme by viewModel.appTheme.collectAsState()
-      val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
-      val darkTheme = when (appTheme) {
-        AppTheme.LIGHT -> false
-        AppTheme.DARK -> true
-        AppTheme.SYSTEM -> systemDark
+      val sharedPref = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+      var selectedTheme by remember {
+        mutableStateOf(sharedPref.getString("selected_theme", "SYSTEM") ?: "SYSTEM")
+      }
+
+      val systemDark = isSystemInDarkTheme()
+      val darkTheme = when (selectedTheme) {
+        "LIGHT" -> false
+        "DARK" -> true
+        else -> systemDark
       }
 
       MyApplicationTheme(darkTheme = darkTheme) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
           PpfCalculatorScreen(
             viewModel = viewModel,
-            currentTheme = appTheme.name,
-            onThemeSelected = { selectedName ->
-              val enumTheme = try {
-                AppTheme.valueOf(selectedName)
-              } catch (e: Exception) {
-                AppTheme.SYSTEM
-              }
-              viewModel.setAppTheme(enumTheme)
+            selectedTheme = selectedTheme,
+            onThemeSelected = { newTheme ->
+              selectedTheme = newTheme
+              sharedPref.edit().putString("selected_theme", newTheme).apply()
             },
             modifier = Modifier.padding(innerPadding)
           )
