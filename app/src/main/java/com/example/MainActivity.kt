@@ -18,7 +18,37 @@ import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
-    override class onCreate(savedInstanceState: Bundle?) {
+    // Move calculation logic entirely outside the Compose lifecycle scope
+    private fun calculatePPFCore(
+        contributions: Map<Int, List<Int>>, 
+        totalYears: Int, 
+        interestRate: Double
+    ): Triple<Double, Double, Double> {
+        var currentBalance = 0.0
+        var absoluteInvestment = 0.0
+        var absoluteInterest = 0.0
+        val r = interestRate / 100.0
+
+        for (year in 1..totalYears) {
+            val monthlyInvestments = contributions[year] ?: List(12) { 0 }
+            var yearInvestment = 0.0
+            var interestEarnedThisYear = 0.0
+
+            for (monthIndex in 0..11) {
+                val monthlyDeposit = monthlyInvestments[monthIndex].toDouble()
+                yearInvestment += monthlyDeposit
+                currentBalance += monthlyDeposit
+                interestEarnedThisYear += (currentBalance * (r / 12.0))
+            }
+
+            currentBalance += interestEarnedThisYear
+            absoluteInvestment += yearInvestment
+            absoluteInterest += interestEarnedThisYear
+        }
+        return Triple(currentBalance, absoluteInvestment, absoluteInterest)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val sharedPref = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -38,42 +68,10 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(mapOf(1 to List(12) { 0 }))
             }
 
-            // Calculation result states to pass down to UI if needed
+            // Results states tracked safely inside Compose
             var maturityAmount by remember { mutableStateOf(0.0) }
-            var totalInterest by remember { mutableStateOf(0.0) }
             var totalInvestment by remember { mutableStateOf(0.0) }
-
-            fun calculatePPF(contributions: Map<Int, List<Int>>, totalYears: Int, interestRate: Double) {
-                var currentBalance = 0.0
-                var absoluteInvestment = 0.0
-                var absoluteInterest = 0.0
-                val r = interestRate / 100.0
-
-                for (year in 1..totalYears) {
-                    val monthlyInvestments = contributions[year] ?: List(12) { 0 }
-                    var yearInvestment = 0.0
-                    var interestEarnedThisYear = 0.0
-
-                    // Calculate month-by-month compounding logic for the year
-                    for (monthIndex in 0..11) {
-                        val monthlyDeposit = monthlyInvestments[monthIndex].toDouble()
-                        yearInvestment += monthlyDeposit
-                        
-                        // PPF Interest is computed on the lowest balance between the 5th and last day of the month
-                        // For basic monthly compounding simulation:
-                        currentBalance += monthlyDeposit
-                        interestEarnedThisYear += (currentBalance * (r / 12.0))
-                    }
-
-                    currentBalance += interestEarnedThisYear
-                    absoluteInvestment += yearInvestment
-                    absoluteInterest += interestEarnedThisYear
-                }
-
-                maturityAmount = currentBalance
-                totalInvestment = absoluteInvestment
-                totalInterest = absoluteInterest
-            }
+            var totalInterest by remember { mutableStateOf(0.0) }
 
             MyApplicationTheme(darkTheme = darkTheme) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -92,7 +90,10 @@ class MainActivity : ComponentActivity() {
                             multiYearContributions.value = currentMap
                         },
                         onCalculateClicked = { finalMap, periodYears, currentRate ->
-                            calculatePPF(finalMap, periodYears, currentRate)
+                            val (mat, inv, int) = calculatePPFCore(finalMap, periodYears, currentRate)
+                            maturityAmount = mat
+                            totalInvestment = inv
+                            totalInterest = int
                         },
                         modifier = Modifier.padding(innerPadding)
                     )
