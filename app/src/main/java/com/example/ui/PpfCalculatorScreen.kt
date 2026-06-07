@@ -42,7 +42,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun PpfCalculatorScreen(
     viewModel: PpfViewModel,
-    currentTheme: String,
+    selectedTheme: String,
     onThemeSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -61,7 +61,7 @@ fun PpfCalculatorScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     val systemDark = isSystemInDarkTheme()
-    val isDark = when (currentTheme) {
+    val isDark = when (selectedTheme) {
         "LIGHT" -> false
         "DARK" -> true
         else -> systemDark
@@ -305,7 +305,7 @@ fun PpfCalculatorScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
-                                    selected = (currentTheme == optionTheme.name),
+                                    selected = (selectedTheme == optionTheme.name),
                                     onClick = {
                                         onThemeSelected(optionTheme.name)
                                         showThemeSelectorDialog = false
