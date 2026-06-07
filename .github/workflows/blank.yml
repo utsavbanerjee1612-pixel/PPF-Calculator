@@ -24,7 +24,7 @@ jobs:
         run: |
           chmod +x gradlew
           sed -i 's/\r$//' gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug -Pandroid.injected.signing.store.file=/home/runner/.android/debug.keystore -Pandroid.injected.signing.store.password=android -Pandroid.injected.signing.key.alias=androiddebugkey -Pandroid.injected.signing.key.password=android
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
