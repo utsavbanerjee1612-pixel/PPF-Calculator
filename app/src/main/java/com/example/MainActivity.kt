@@ -38,6 +38,10 @@ class MainActivity : ComponentActivity() {
         else -> systemDark
       }
 
+      var multiYearContributions by remember {
+        mutableStateOf(mapOf(1 to List(12) { 0 }))
+      }
+
       MyApplicationTheme(darkTheme = darkTheme) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
           PpfCalculatorScreen(
@@ -46,6 +50,18 @@ class MainActivity : ComponentActivity() {
             onThemeSelected = { newTheme ->
               selectedTheme = newTheme
               sharedPref.edit().putString("selected_theme", newTheme).apply()
+            },
+            multiYearContributions = multiYearContributions,
+            onContributionChanged = { year, monthIndex, amount ->
+              val currentList = multiYearContributions[year] ?: List(12) { 0 }
+              val updatedList = currentList.toMutableList().apply {
+                if (monthIndex in 0..11) {
+                  set(monthIndex, amount)
+                }
+              }
+              multiYearContributions = multiYearContributions.toMutableMap().apply {
+                put(year, updatedList)
+              }.toMap()
             },
             modifier = Modifier.padding(innerPadding)
           )
