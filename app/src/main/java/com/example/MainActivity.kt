@@ -35,6 +35,15 @@ class MainActivity : ComponentActivity() {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
           PpfCalculatorScreen(
             viewModel = viewModel,
+            currentTheme = appTheme.name,
+            onThemeSelected = { selectedName ->
+              val enumTheme = try {
+                AppTheme.valueOf(selectedName)
+              } catch (e: Exception) {
+                AppTheme.SYSTEM
+              }
+              viewModel.setAppTheme(enumTheme)
+            },
             modifier = Modifier.padding(innerPadding)
           )
         }
