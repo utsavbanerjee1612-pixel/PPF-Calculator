@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.example.model.ContributionType
 import com.example.model.PpfResult
 import com.example.model.YearlyBreakdown
+import com.example.model.AppTheme
 import com.example.viewmodel.PpfViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -55,13 +56,18 @@ fun PpfCalculatorScreen(
     val ppfResult by viewModel.ppfResult.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    val isDarkThemeSet by viewModel.isDarkTheme.collectAsState()
+    val appTheme by viewModel.appTheme.collectAsState()
     val systemDark = isSystemInDarkTheme()
-    val isDark = isDarkThemeSet ?: systemDark
+    val isDark = when (appTheme) {
+        AppTheme.LIGHT -> false
+        AppTheme.DARK -> true
+        AppTheme.SYSTEM -> systemDark
+    }
 
     val focusManager = LocalFocusManager.current
     var isBreakdownCollapsed by remember { mutableStateOf(false) }
     var showValidationErrorDialog by remember { mutableStateOf(false) }
+    var showThemeSelectorDialog by remember { mutableStateOf(false) }
     var validationErrorMessage by remember { mutableStateOf("") }
     var validationErrorTitle by remember { mutableStateOf("Invalid Amount") }
 
@@ -75,7 +81,7 @@ fun PpfCalculatorScreen(
             // App Bar (Top Header) - styled according to Design HTML
             PpfAppBarView(
                 isDark = isDark,
-                onToggleTheme = { viewModel.toggleDarkTheme(systemDark) }
+                onToggleTheme = { showThemeSelectorDialog = true }
             )
 
             // Scrollable Content Area
@@ -258,6 +264,68 @@ fun PpfCalculatorScreen(
                 }
             },
             modifier = Modifier.testTag("validation_alert_dialog")
+        )
+    }
+
+    if (showThemeSelectorDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeSelectorDialog = false },
+            title = {
+                Text(
+                    text = "Choose Theme",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val options = listOf(
+                        AppTheme.LIGHT to "Light Mode",
+                        AppTheme.DARK to "Dark Mode",
+                        AppTheme.SYSTEM to "System Default"
+                    )
+                    options.forEach { (optionTheme, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    viewModel.setAppTheme(optionTheme)
+                                    showThemeSelectorDialog = false
+                                }
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (appTheme == optionTheme),
+                                onClick = {
+                                    viewModel.setAppTheme(optionTheme)
+                                    showThemeSelectorDialog = false
+                                },
+                                modifier = Modifier.testTag("theme_radio_$label")
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showThemeSelectorDialog = false },
+                    modifier = Modifier.testTag("theme_dialog_close_button")
+                ) {
+                    Text("Cancel")
+                }
+            },
+            modifier = Modifier.testTag("theme_selection_dialog")
         )
     }
 }
