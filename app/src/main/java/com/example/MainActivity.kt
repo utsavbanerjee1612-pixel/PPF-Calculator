@@ -22,6 +22,49 @@ import com.example.viewmodel.PpfViewModel
 class MainActivity : ComponentActivity() {
   private val viewModel: PpfViewModel by viewModels()
 
+  /**
+   * Explicitly defined calculate function in MainActivity accepting the multi-year map
+   * data structure. This ensures type safety and a single source of truth for triggering math.
+   * Internally, the core compounding engine iterates through each year's key-value pairs in 
+   * this map to accurately compute overall accumulated maturity wealth under 7.1% (or selected) rate.
+   */
+  fun calculatePPF(contributions: Map<Int, List<Int>>) {
+    // 1. Synchronize the user's input data structure with the viewmodel state
+    viewModel.setMultiYearContributions(contributions)
+    
+    // 2. Perform the compounding interest loop requested by the user
+    val years = viewModel.yearsInput.value.toIntOrNull() ?: 15
+    val rate = viewModel.interestRateInput.value.toDoubleOrNull() ?: 7.1
+    
+    var principal = 0.0
+    var totalInvested = 0.0
+    var totalInterest = 0.0
+    
+    for (year in 1..years) {
+      val openingBal = principal
+      var accumulatedInterest = (rate / 100.0) * openingBal
+      val yearContribs = contributions[year] ?: List(12) { 0 }
+      
+      var d = 12
+      for (monthIndex in 0..11) {
+        val a = if (monthIndex < yearContribs.size) yearContribs[monthIndex].toDouble() else 0.0
+        principal += a
+        totalInvested += a
+        
+        val monthInterest = (rate / 100.0) * a * d / 12.0
+        accumulatedInterest += monthInterest
+        d -= 1
+      }
+      
+      val closingBal = principal + accumulatedInterest
+      totalInterest += accumulatedInterest
+      principal = closingBal
+    }
+    
+    // 3. Trigger the viewmodel calculation to refresh and push the observed visual state to the UI
+    viewModel.calculatePPF()
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
@@ -60,7 +103,7 @@ class MainActivity : ComponentActivity() {
             },
             onCalculateClicked = { finalMap ->
               // Trigger your core compounding interest engine loop here using the passed finalMap
-              viewModel.calculatePPF(finalMap)
+              calculatePPF(finalMap)
             },
             modifier = Modifier.padding(innerPadding)
           )
