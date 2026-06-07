@@ -43,6 +43,8 @@ fun PpfCalculatorScreen(
     viewModel: PpfViewModel,
     selectedTheme: String,
     onThemeSelected: (String) -> Unit,
+    multiYearContributions: Map<Int, List<Int>>,
+    onContributionChanged: (year: Int, monthIndex: Int, amount: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val contributionType by viewModel.contributionType.collectAsState()
@@ -53,7 +55,6 @@ fun PpfCalculatorScreen(
     val lumpsumAmountInput by viewModel.lumpsumAmountInput.collectAsState()
     val flatMonthlyInput by viewModel.flatMonthlyInput.collectAsState()
     val monthlyContributions by viewModel.monthlyContributions.collectAsState()
-    val multiYearContributions by viewModel.multiYearContributions.collectAsState()
     val isCustomMonthlyEnabled by viewModel.isCustomMonthlyEnabled.collectAsState()
     
     // Result & Errors
@@ -135,13 +136,10 @@ fun PpfCalculatorScreen(
                             visibleYearsCount = visibleYearsCount,
                             onVisibleYearsChange = { visibleYearsCount = it },
                             multiYearContributions = multiYearContributions,
-                            defaultMonthlyContributions = monthlyContributions,
                             onLumpsumChange = { viewModel.setLumpsumAmountInput(it) },
                             onFlatMonthlyChange = { viewModel.setFlatMonthlyInput(it) },
                             onCustomMonthlyToggle = { viewModel.setCustomMonthlyEnabled(it) },
-                            onMultiYearValueChange = { year, index, value -> 
-                                viewModel.updateMultiYearContribution(year, index, value)
-                            }
+                            onContributionChanged = onContributionChanged
                         )
                     }
 
@@ -179,28 +177,23 @@ fun PpfCalculatorScreen(
 
                                         val activeVisibleYears = visibleYearsCount.coerceAtMost(maxYears)
                                         for (y in 1..activeVisibleYears) {
-                                            val yearContribs = multiYearContributions[y] ?: monthlyContributions
-                                            val roundedContributions = yearContribs.map { contrib ->
-                                                (Math.round(contrib / 100.0) * 100.0)
-                                            }
-                                            // Update the viewmodel so the UI instantly updates to the rounded numbers
-                                            roundedContributions.forEachIndexed { idx, rv ->
-                                                if (rv != yearContribs[idx]) {
-                                                    viewModel.updateMultiYearContribution(y, idx, rv)
-                                                }
-                                            }
+                                            val yearContribs = multiYearContributions[y] ?: List(12) { 0 }
 
-                                            // Perform validations on the rounded values
-                                            val individualValid = roundedContributions.all { contrib ->
-                                                contrib >= 0.0 && contrib <= 150000.0
+                                            // Perform validations
+                                            val individualValid = yearContribs.all { contrib ->
+                                                contrib >= 0 && contrib <= 150000
                                             }
-                                            val totalSum = roundedContributions.sum()
-                                            val totalValid = totalSum >= 500.0 && totalSum <= 150000.0
+                                            val totalSum = yearContribs.sum()
+                                            val totalValid = totalSum >= 500 && totalSum <= 150000 && (totalSum % 100 == 0)
 
                                             if (!individualValid || !totalValid) {
                                                 allYearsValid = false
                                                 invalidYear = y
-                                                errorMessageDetail = "Total PPF investment for Year $y must be between ₹500 and ₹1,50,000, and individual monthly amounts must be less than ₹1,50,000 in multiples of ₹100."
+                                                errorMessageDetail = if (totalSum % 100 != 0) {
+                                                    "Total PPF investment for Year $y must be a multiple of ₹100. Currently it is ₹$totalSum."
+                                                } else {
+                                                    "Total PPF investment for Year $y must be between ₹500 and ₹1,50,000, and individual monthly amounts must be less than ₹1,50,000."
+                                                }
                                                 break
                                             }
                                         }
@@ -211,6 +204,7 @@ fun PpfCalculatorScreen(
                                             showValidationErrorDialog = true
                                         } else {
                                             focusManager.clearFocus()
+                                            viewModel.setMultiYearContributions(multiYearContributions)
                                             viewModel.calculatePPF()
                                         }
                                     }
@@ -581,12 +575,11 @@ fun DynamicInvestmentCard(
     maxYears: Int,
     visibleYearsCount: Int,
     onVisibleYearsChange: (Int) -> Unit,
-    multiYearContributions: Map<Int, List<Double>>,
-    defaultMonthlyContributions: List<Double>,
+    multiYearContributions: Map<Int, List<Int>>,
     onLumpsumChange: (String) -> Unit,
     onFlatMonthlyChange: (String) -> Unit,
     onCustomMonthlyToggle: (Boolean) -> Unit,
-    onMultiYearValueChange: (Int, Int, Double) -> Unit
+    onContributionChanged: (year: Int, monthIndex: Int, amount: Int) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -725,18 +718,18 @@ fun DynamicInvestmentCard(
                                         modifier = Modifier.padding(horizontal = 4.dp)
                                     )
 
-                                    val yearContribs = multiYearContributions[y] ?: defaultMonthlyContributions
+                                    val yearContribs = multiYearContributions[y] ?: List(12) { 0 }
 
                                     monthsLabel.forEachIndexed { idx, label ->
-                                        val currentVal = yearContribs.getOrElse(idx) { 0.0 }
+                                        val currentVal = yearContribs.getOrElse(idx) { 0 }
                                         
                                         // A local state to track direct typing cleanly, keyed on currentVal
                                         var textState by remember(currentVal) {
-                                            val initialText = if (currentVal == 0.0) "" else currentVal.toInt().toString()
+                                            val initialText = if (currentVal == 0) "" else currentVal.toString()
                                             mutableStateOf(initialText)
                                         }
                                         // Visual hint if current user typed value is not a multiple of 100
-                                        val isMultipleOf100 = (Math.round(currentVal) % 100L == 0L)
+                                        val isMultipleOf100 = (currentVal % 100 == 0)
 
                                         Column(
                                             modifier = Modifier
@@ -763,7 +756,7 @@ fun DynamicInvestmentCard(
                                                     )
                                                     if (!isMultipleOf100 && textState.isNotEmpty()) {
                                                         Text(
-                                                            text = "Will be rounded to nearest 100",
+                                                            text = "Will be rounded to nearest 100 on next click",
                                                             style = MaterialTheme.typography.labelSmall,
                                                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                                                         )
@@ -777,8 +770,8 @@ fun DynamicInvestmentCard(
                                                     onValueChange = { newVal ->
                                                         val digits = newVal.filter { it.isDigit() }
                                                         textState = digits
-                                                        val parsed = digits.toDoubleOrNull() ?: 0.0
-                                                        onMultiYearValueChange(y, idx, parsed)
+                                                        val parsed = digits.toIntOrNull() ?: 0
+                                                        onContributionChanged(y, idx, parsed)
                                                     },
                                                     modifier = Modifier
                                                         .width(130.dp)
@@ -805,8 +798,8 @@ fun DynamicInvestmentCard(
                                             Slider(
                                                 value = currentVal.toFloat().coerceIn(0f, 150000f),
                                                 onValueChange = { sliderVal ->
-                                                    val snapped = (Math.round(sliderVal / 100.0) * 100.0)
-                                                    onMultiYearValueChange(y, idx, snapped)
+                                                    val snapped = (Math.round(sliderVal / 100.0) * 100).toInt()
+                                                    onContributionChanged(y, idx, snapped)
                                                 },
                                                 valueRange = 0f..150000f,
                                                 modifier = Modifier.fillMaxWidth().testTag("monthly_slider_y${y}_$label")
@@ -817,7 +810,7 @@ fun DynamicInvestmentCard(
                                     // Progression Trigger Button at the bottom of the current financial year's month list
                                     if (y == activeVisibleYears && y < maxYears) {
                                         val totalSum = yearContribs.sum()
-                                        val satisfiesPPFCriteria = totalSum >= 500.0 && totalSum <= 150000.0 && (Math.round(totalSum) % 100L == 0L)
+                                        val satisfiesPPFCriteria = totalSum >= 500 && totalSum <= 150000 && (totalSum % 100 == 0)
                                         if (satisfiesPPFCriteria) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Button(
