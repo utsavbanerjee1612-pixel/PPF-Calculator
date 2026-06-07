@@ -22,6 +22,15 @@ import com.example.viewmodel.PpfViewModel
 class MainActivity : ComponentActivity() {
   private val viewModel: PpfViewModel by viewModels()
 
+  /**
+   * Explicitly defined calculate function in MainActivity accepting the multi-year map
+   * data structure. This ensures type safety and a single source of truth for triggering math.
+   */
+  fun calculatePPF(contributions: Map<Int, List<Int>>) {
+    viewModel.setMultiYearContributions(contributions)
+    viewModel.calculatePPF()
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
@@ -38,6 +47,7 @@ class MainActivity : ComponentActivity() {
         else -> systemDark
       }
 
+      // Track multi-year state inside onCreate utilizing the required state declaration
       val multiYearContributions = remember {
         mutableStateOf(mapOf(1 to List(12) { 0 }))
       }
@@ -52,15 +62,15 @@ class MainActivity : ComponentActivity() {
               sharedPref.edit().putString("selected_theme", newTheme).apply()
             },
             multiYearContributions = multiYearContributions.value,
-            onContributionChanged = { year, monthIndex, amount ->
-              val currentList = multiYearContributions.value[year] ?: List(12) { 0 }
+            onContributionChanged = { yearIndex, monthIndex, updatedValue ->
+              val currentList = multiYearContributions.value[yearIndex] ?: List(12) { 0 }
               val updatedList = currentList.toMutableList().apply {
                 if (monthIndex in 0..11) {
-                  set(monthIndex, amount)
+                  set(monthIndex, updatedValue)
                 }
               }
               multiYearContributions.value = multiYearContributions.value.toMutableMap().apply {
-                put(year, updatedList)
+                put(yearIndex, updatedList)
               }.toMap()
             },
             modifier = Modifier.padding(innerPadding)
