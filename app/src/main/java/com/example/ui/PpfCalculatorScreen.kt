@@ -35,11 +35,15 @@ import com.example.model.PpfResult
 import com.example.model.YearlyBreakdown
 import com.example.model.AppTheme
 import com.example.viewmodel.PpfViewModel
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.ExperimentalMaterial3Api
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PpfCalculatorScreen(
     viewModel: PpfViewModel,
+    currentTheme: String,
+    onThemeSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val contributionType by viewModel.contributionType.collectAsState()
@@ -56,12 +60,11 @@ fun PpfCalculatorScreen(
     val ppfResult by viewModel.ppfResult.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    val appTheme by viewModel.appTheme.collectAsState()
     val systemDark = isSystemInDarkTheme()
-    val isDark = when (appTheme) {
-        AppTheme.LIGHT -> false
-        AppTheme.DARK -> true
-        AppTheme.SYSTEM -> systemDark
+    val isDark = when (currentTheme) {
+        "LIGHT" -> false
+        "DARK" -> true
+        else -> systemDark
     }
 
     val focusManager = LocalFocusManager.current
@@ -279,8 +282,8 @@ fun PpfCalculatorScreen(
             },
             text = {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val options = listOf(
                         AppTheme.LIGHT to "Light Mode",
@@ -288,31 +291,34 @@ fun PpfCalculatorScreen(
                         AppTheme.SYSTEM to "System Default"
                     )
                     options.forEach { (optionTheme, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    viewModel.setAppTheme(optionTheme)
-                                    showThemeSelectorDialog = false
-                                }
-                                .padding(vertical = 8.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (appTheme == optionTheme),
-                                onClick = {
-                                    viewModel.setAppTheme(optionTheme)
-                                    showThemeSelectorDialog = false
-                                },
-                                modifier = Modifier.testTag("theme_radio_$label")
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        onThemeSelected(optionTheme.name)
+                                        showThemeSelectorDialog = false
+                                    }
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = (currentTheme == optionTheme.name),
+                                    onClick = {
+                                        onThemeSelected(optionTheme.name)
+                                        showThemeSelectorDialog = false
+                                    },
+                                    modifier = Modifier.testTag("theme_radio_$label")
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }
@@ -1266,3 +1272,4 @@ fun formatCurrency(amount: Double): String {
         "₹" + String.format("%,.0f", amount)
     }
 }
+
