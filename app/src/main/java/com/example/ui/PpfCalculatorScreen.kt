@@ -44,9 +44,12 @@ fun PpfCalculatorScreen(
     selectedTheme: String,
     onThemeSelected: (String) -> Unit,
     multiYearContributions: Map<Int, List<Int>>,
-    onContributionChanged: (year: Int, monthIndex: Int, amount: Int) -> Unit,
+    onContributionChanged: (yearIndex: Int, monthIndex: Int, updatedValue: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val mainActivity = context as? com.example.MainActivity
+
     val contributionType by viewModel.contributionType.collectAsState()
     val yearsInput by viewModel.yearsInput.collectAsState()
     val interestRateInput by viewModel.interestRateInput.collectAsState()
@@ -204,7 +207,11 @@ fun PpfCalculatorScreen(
                                             showValidationErrorDialog = true
                                         } else {
                                             focusManager.clearFocus()
-                                            viewModel.calculatePPF(multiYearContributions)
+                                            if (mainActivity != null) {
+                                                mainActivity.calculatePPF(multiYearContributions)
+                                            } else {
+                                                viewModel.calculatePPF(multiYearContributions)
+                                            }
                                         }
                                     }
                                 }
@@ -578,7 +585,7 @@ fun DynamicInvestmentCard(
     onLumpsumChange: (String) -> Unit,
     onFlatMonthlyChange: (String) -> Unit,
     onCustomMonthlyToggle: (Boolean) -> Unit,
-    onContributionChanged: (year: Int, monthIndex: Int, amount: Int) -> Unit
+    onContributionChanged: (yearIndex: Int, monthIndex: Int, updatedValue: Int) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
