@@ -28,13 +28,13 @@ class MainActivity : ComponentActivity() {
     setContent {
       val sharedPref = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
       var selectedTheme by remember {
-        mutableStateOf(sharedPref.getString("selected_theme", "SYSTEM") ?: "SYSTEM")
+        mutableStateOf(sharedPref.getString("selected_theme", "System") ?: "System")
       }
 
       val systemDark = isSystemInDarkTheme()
       val darkTheme = when (selectedTheme) {
-        "LIGHT" -> false
-        "DARK" -> true
+        "Light" -> false
+        "Dark" -> true
         else -> systemDark
       }
 
