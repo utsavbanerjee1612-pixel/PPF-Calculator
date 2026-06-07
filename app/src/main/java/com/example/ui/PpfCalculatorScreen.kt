@@ -53,6 +53,7 @@ fun PpfCalculatorScreen(
     val lumpsumAmountInput by viewModel.lumpsumAmountInput.collectAsState()
     val flatMonthlyInput by viewModel.flatMonthlyInput.collectAsState()
     val monthlyContributions by viewModel.monthlyContributions.collectAsState()
+    val multiYearContributions by viewModel.multiYearContributions.collectAsState()
     val isCustomMonthlyEnabled by viewModel.isCustomMonthlyEnabled.collectAsState()
     
     // Result & Errors
@@ -72,6 +73,9 @@ fun PpfCalculatorScreen(
     var showThemeSelectorDialog by remember { mutableStateOf(false) }
     var validationErrorMessage by remember { mutableStateOf("") }
     var validationErrorTitle by remember { mutableStateOf("Invalid Amount") }
+
+    val maxYears = yearsInput.toIntOrNull() ?: 15
+    var visibleYearsCount by remember(maxYears, isCustomMonthlyEnabled) { mutableStateOf(1) }
 
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -127,12 +131,16 @@ fun PpfCalculatorScreen(
                             lumpsumAmount = lumpsumAmountInput,
                             flatMonthlyAmount = flatMonthlyInput,
                             isCustomMonthly = isCustomMonthlyEnabled,
-                            monthlyContributions = monthlyContributions,
+                            maxYears = maxYears,
+                            visibleYearsCount = visibleYearsCount,
+                            onVisibleYearsChange = { visibleYearsCount = it },
+                            multiYearContributions = multiYearContributions,
+                            defaultMonthlyContributions = monthlyContributions,
                             onLumpsumChange = { viewModel.setLumpsumAmountInput(it) },
                             onFlatMonthlyChange = { viewModel.setFlatMonthlyInput(it) },
                             onCustomMonthlyToggle = { viewModel.setCustomMonthlyEnabled(it) },
-                            onMonthlyValueChange = { index, value -> 
-                                viewModel.updateMonthlyContribution(index, value)
+                            onMultiYearValueChange = { year, index, value -> 
+                                viewModel.updateMultiYearContribution(year, index, value)
                             }
                         )
                     }
@@ -164,27 +172,42 @@ fun PpfCalculatorScreen(
                                             viewModel.calculatePPF()
                                         }
                                     } else {
-                                        // First, round all individual monthly investments to nearest 100
-                                        val roundedContributions = monthlyContributions.map { contrib ->
-                                            (Math.round(contrib / 100.0) * 100.0)
-                                        }
-                                        // Update the viewmodel so the UI instantly updates to the rounded numbers
-                                        roundedContributions.forEachIndexed { idx, rv ->
-                                            if (rv != monthlyContributions[idx]) {
-                                                viewModel.updateMonthlyContribution(idx, rv)
+                                        // Dynamic Multi-year validation
+                                        var allYearsValid = true
+                                        var invalidYear = -1
+                                        var errorMessageDetail = ""
+
+                                        val activeVisibleYears = visibleYearsCount.coerceAtMost(maxYears)
+                                        for (y in 1..activeVisibleYears) {
+                                            val yearContribs = multiYearContributions[y] ?: monthlyContributions
+                                            val roundedContributions = yearContribs.map { contrib ->
+                                                (Math.round(contrib / 100.0) * 100.0)
+                                            }
+                                            // Update the viewmodel so the UI instantly updates to the rounded numbers
+                                            roundedContributions.forEachIndexed { idx, rv ->
+                                                if (rv != yearContribs[idx]) {
+                                                    viewModel.updateMultiYearContribution(y, idx, rv)
+                                                }
+                                            }
+
+                                            // Perform validations on the rounded values
+                                            val individualValid = roundedContributions.all { contrib ->
+                                                contrib >= 0.0 && contrib <= 150000.0
+                                            }
+                                            val totalSum = roundedContributions.sum()
+                                            val totalValid = totalSum >= 500.0 && totalSum <= 150000.0
+
+                                            if (!individualValid || !totalValid) {
+                                                allYearsValid = false
+                                                invalidYear = y
+                                                errorMessageDetail = "Total PPF investment for Year $y must be between ₹500 and ₹1,50,000, and individual monthly amounts must be less than ₹1,50,000 in multiples of ₹100."
+                                                break
                                             }
                                         }
 
-                                        // Perform validations on the rounded values
-                                        val individualValid = roundedContributions.all { contrib ->
-                                            contrib >= 0.0 && contrib <= 150000.0
-                                        }
-                                        val totalSum = roundedContributions.sum()
-                                        val totalValid = totalSum >= 500.0 && totalSum <= 150000.0
-
-                                        if (!individualValid || !totalValid) {
+                                        if (!allYearsValid) {
                                             validationErrorTitle = "Invalid Distribution"
-                                            validationErrorMessage = "Total monthly amount in PPF in a single month needs to be between ₹100 and ₹150000 and total annual amount between ₹500 and ₹150000. Please re-enter the value."
+                                            validationErrorMessage = errorMessageDetail
                                             showValidationErrorDialog = true
                                         } else {
                                             focusManager.clearFocus()
@@ -555,11 +578,15 @@ fun DynamicInvestmentCard(
     lumpsumAmount: String,
     flatMonthlyAmount: String,
     isCustomMonthly: Boolean,
-    monthlyContributions: List<Double>,
+    maxYears: Int,
+    visibleYearsCount: Int,
+    onVisibleYearsChange: (Int) -> Unit,
+    multiYearContributions: Map<Int, List<Double>>,
+    defaultMonthlyContributions: List<Double>,
     onLumpsumChange: (String) -> Unit,
     onFlatMonthlyChange: (String) -> Unit,
     onCustomMonthlyToggle: (Boolean) -> Unit,
-    onMonthlyValueChange: (Int, Double) -> Unit
+    onMultiYearValueChange: (Int, Int, Double) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -675,100 +702,143 @@ fun DynamicInvestmentCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = "Financial Year Contributions (Apr to Mar)",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-
-                        monthsLabel.forEachIndexed { idx, label ->
-                            val currentVal = monthlyContributions.getOrElse(idx) { 0.0 }
-                            
-                            // A local state to track direct typing cleanly, keyed on currentVal
-                            var textState by remember(currentVal) {
-                                val initialText = if (currentVal == 0.0) "" else currentVal.toInt().toString()
-                                mutableStateOf(initialText)
-                            }
-                            // Visual hint if current user typed value is not a multiple of 100
-                            val isMultipleOf100 = (Math.round(currentVal) % 100L == 0L)
-
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(10.dp)
+                        val activeVisibleYears = visibleYearsCount.coerceAtMost(maxYears)
+                        for (y in 1..activeVisibleYears) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                ),
+                                shape = RoundedCornerShape(16.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        if (!isMultipleOf100 && textState.isNotEmpty()) {
-                                            Text(
-                                                text = "Will be rounded to nearest 100",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                    Text(
+                                        text = "Financial Year $y Contributions (Apr to Mar)",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                    )
+
+                                    val yearContribs = multiYearContributions[y] ?: defaultMonthlyContributions
+
+                                    monthsLabel.forEachIndexed { idx, label ->
+                                        val currentVal = yearContribs.getOrElse(idx) { 0.0 }
+                                        
+                                        // A local state to track direct typing cleanly, keyed on currentVal
+                                        var textState by remember(currentVal) {
+                                            val initialText = if (currentVal == 0.0) "" else currentVal.toInt().toString()
+                                            mutableStateOf(initialText)
+                                        }
+                                        // Visual hint if current user typed value is not a multiple of 100
+                                        val isMultipleOf100 = (Math.round(currentVal) % 100L == 0L)
+
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .padding(10.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    if (!isMultipleOf100 && textState.isNotEmpty()) {
+                                                        Text(
+                                                            text = "Will be rounded to nearest 100",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                                        )
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.width(8.dp))
+
+                                                OutlinedTextField(
+                                                    value = textState,
+                                                    onValueChange = { newVal ->
+                                                        val digits = newVal.filter { it.isDigit() }
+                                                        textState = digits
+                                                        val parsed = digits.toDoubleOrNull() ?: 0.0
+                                                        onMultiYearValueChange(y, idx, parsed)
+                                                    },
+                                                    modifier = Modifier
+                                                        .width(130.dp)
+                                                        .height(52.dp)
+                                                        .testTag("monthly_input_y${y}_$label"),
+                                                    placeholder = { Text("0") },
+                                                    keyboardOptions = KeyboardOptions(
+                                                        keyboardType = KeyboardType.Number,
+                                                        imeAction = ImeAction.Next
+                                                    ),
+                                                    singleLine = true,
+                                                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                    colors = OutlinedTextFieldDefaults.colors(
+                                                        focusedContainerColor = Color.Transparent,
+                                                        unfocusedContainerColor = Color.Transparent,
+                                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                                    )
+                                                )
+                                            }
+                                            
+                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                            Slider(
+                                                value = currentVal.toFloat().coerceIn(0f, 150000f),
+                                                onValueChange = { sliderVal ->
+                                                    val snapped = (Math.round(sliderVal / 100.0) * 100.0)
+                                                    onMultiYearValueChange(y, idx, snapped)
+                                                },
+                                                valueRange = 0f..150000f,
+                                                modifier = Modifier.fillMaxWidth().testTag("monthly_slider_y${y}_$label")
                                             )
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    OutlinedTextField(
-                                        value = textState,
-                                        onValueChange = { newVal ->
-                                            val digits = newVal.filter { it.isDigit() }
-                                            textState = digits
-                                            val parsed = digits.toDoubleOrNull() ?: 0.0
-                                            onMonthlyValueChange(idx, parsed)
-                                        },
-                                        modifier = Modifier
-                                            .width(130.dp)
-                                            .height(52.dp)
-                                            .testTag("monthly_input_$label"),
-                                        placeholder = { Text("0") },
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Number,
-                                            imeAction = ImeAction.Next
-                                        ),
-                                        singleLine = true,
-                                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color.Transparent,
-                                            unfocusedContainerColor = Color.Transparent,
-                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                                        )
-                                    )
+                                    // Progression Trigger Button at the bottom of the current financial year's month list
+                                    if (y == activeVisibleYears && y < maxYears) {
+                                        val totalSum = yearContribs.sum()
+                                        val satisfiesPPFCriteria = totalSum >= 500.0 && totalSum <= 150000.0 && (Math.round(totalSum) % 100L == 0L)
+                                        if (satisfiesPPFCriteria) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Button(
+                                                onClick = {
+                                                    onVisibleYearsChange(activeVisibleYears + 1)
+                                                },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(48.dp)
+                                                    .testTag("next_financial_year_button"),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Enter value for next financial year",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
-                                
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Slider(
-                                    value = currentVal.toFloat().coerceIn(0f, 150000f),
-                                    onValueChange = { sliderVal ->
-                                        val snapped = (Math.round(sliderVal / 100.0) * 100.0)
-                                        onMonthlyValueChange(idx, snapped)
-                                    },
-                                    valueRange = 0f..150000f,
-                                    modifier = Modifier.fillMaxWidth().testTag("monthly_slider_$label")
-                                )
                             }
                         }
                     }
