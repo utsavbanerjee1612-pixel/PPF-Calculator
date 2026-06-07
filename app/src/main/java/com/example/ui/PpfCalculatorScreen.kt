@@ -204,8 +204,7 @@ fun PpfCalculatorScreen(
                                             showValidationErrorDialog = true
                                         } else {
                                             focusManager.clearFocus()
-                                            viewModel.setMultiYearContributions(multiYearContributions)
-                                            viewModel.calculatePPF()
+                                            viewModel.calculatePPF(multiYearContributions)
                                         }
                                     }
                                 }
@@ -795,15 +794,17 @@ fun DynamicInvestmentCard(
                                             
                                             Spacer(modifier = Modifier.height(6.dp))
 
-                                            Slider(
-                                                value = currentVal.toFloat().coerceIn(0f, 150000f),
-                                                onValueChange = { sliderVal ->
-                                                    val snapped = (Math.round(sliderVal / 100.0) * 100).toInt()
-                                                    onContributionChanged(y, idx, snapped)
-                                                },
-                                                valueRange = 0f..150000f,
-                                                modifier = Modifier.fillMaxWidth().testTag("monthly_slider_y${y}_$label")
-                                            )
+                                            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                                                Slider(
+                                                    value = currentVal.toFloat().coerceIn(0f, 150000f),
+                                                    onValueChange = { sliderVal ->
+                                                        val snapped = (Math.round(sliderVal / 100.0) * 100).toInt()
+                                                        onContributionChanged(y, idx, snapped)
+                                                    },
+                                                    valueRange = 0f..150000f,
+                                                    modifier = Modifier.fillMaxWidth().testTag("monthly_slider_y${y}_$label")
+                                                )
+                                            }
                                         }
                                     }
 
