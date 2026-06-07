@@ -22,17 +22,6 @@ import com.example.viewmodel.PpfViewModel
 class MainActivity : ComponentActivity() {
   private val viewModel: PpfViewModel by viewModels()
 
-  /**
-   * Explicitly defined calculate function in MainActivity accepting the multi-year map
-   * data structure. This ensures type safety and a single source of truth for triggering math.
-   * Internally, the core compounding engine iterates through each year's key-value pairs in 
-   * this map to accurately compute overall accumulated maturity wealth.
-   */
-  fun calculatePPF(contributions: Map<Int, List<Int>>) {
-    viewModel.setMultiYearContributions(contributions)
-    viewModel.calculatePPF()
-  }
-
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
@@ -50,9 +39,7 @@ class MainActivity : ComponentActivity() {
       }
 
       // Track multi-year state container inside onCreate utilizing the required state declaration
-      val multiYearContributions = remember {
-        mutableStateOf(mapOf(1 to List(12) { 0 }))
-      }
+      val multiYearContributions = remember { mutableStateOf(mapOf(1 to List(12) { 0 })) }
 
       MyApplicationTheme(darkTheme = darkTheme) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -65,19 +52,15 @@ class MainActivity : ComponentActivity() {
             },
             multiYearContributions = multiYearContributions.value,
             onContributionChanged = { yearIndex, monthIndex, updatedValue ->
-              val currentList = multiYearContributions.value[yearIndex] ?: List(12) { 0 }
-              val updatedList = currentList.toMutableList().apply {
-                if (monthIndex in 0..11) {
-                  set(monthIndex, updatedValue)
-                }
-              }
-              multiYearContributions.value = multiYearContributions.value.toMutableMap().apply {
-                put(yearIndex, updatedList)
-              }.toMap()
+              val currentMap = multiYearContributions.value.toMutableMap()
+              val currentYearList = (currentMap[yearIndex] ?: List(12) { 0 }).toMutableList()
+              currentYearList[monthIndex] = updatedValue
+              currentMap[yearIndex] = currentYearList
+              multiYearContributions.value = currentMap
             },
-            onCalculateClicked = { contributionsMap ->
-              // Compounding calculation cycles through each year entry inside this map to compute the overall wealth accurately
-              calculatePPF(contributionsMap)
+            onCalculateClicked = { finalMap ->
+              // Trigger your core compounding interest engine loop here using the passed finalMap
+              viewModel.calculatePPF(finalMap)
             },
             modifier = Modifier.padding(innerPadding)
           )
