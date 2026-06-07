@@ -25,6 +25,8 @@ class MainActivity : ComponentActivity() {
   /**
    * Explicitly defined calculate function in MainActivity accepting the multi-year map
    * data structure. This ensures type safety and a single source of truth for triggering math.
+   * Internally, the core compounding engine iterates through each year's key-value pairs in 
+   * this map to accurately compute overall accumulated maturity wealth.
    */
   fun calculatePPF(contributions: Map<Int, List<Int>>) {
     viewModel.setMultiYearContributions(contributions)
@@ -47,7 +49,7 @@ class MainActivity : ComponentActivity() {
         else -> systemDark
       }
 
-      // Track multi-year state inside onCreate utilizing the required state declaration
+      // Track multi-year state container inside onCreate utilizing the required state declaration
       val multiYearContributions = remember {
         mutableStateOf(mapOf(1 to List(12) { 0 }))
       }
@@ -72,6 +74,10 @@ class MainActivity : ComponentActivity() {
               multiYearContributions.value = multiYearContributions.value.toMutableMap().apply {
                 put(yearIndex, updatedList)
               }.toMap()
+            },
+            onCalculateClicked = { contributionsMap ->
+              // Compounding calculation cycles through each year entry inside this map to compute the overall wealth accurately
+              calculatePPF(contributionsMap)
             },
             modifier = Modifier.padding(innerPadding)
           )
