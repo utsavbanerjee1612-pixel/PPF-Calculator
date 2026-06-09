@@ -18,7 +18,7 @@ import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
-    // Move calculation logic entirely outside the Compose lifecycle scope
+    // Detached pure calculation method to avoid @Composable scope issues
     private fun calculatePPFCore(
         contributions: Map<Int, List<Int>>, 
         totalYears: Int, 
@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(mapOf(1 to List(12) { 0 }))
             }
 
-            // Results states tracked safely inside Compose
+            // Calculations track points
             var maturityAmount by remember { mutableStateOf(0.0) }
             var totalInvestment by remember { mutableStateOf(0.0) }
             var totalInterest by remember { mutableStateOf(0.0) }
@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme(darkTheme = darkTheme) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     PpfCalculatorScreen(
+                        viewModel = null, // Passes explicit null to satisfy the required UI signature safely
                         selectedTheme = selectedTheme,
                         onThemeSelected = { newTheme ->
                             selectedTheme = newTheme
