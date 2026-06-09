@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,26 +15,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.ui.PpfCalculatorScreen
+import com.example.ui.PpfViewModel
 import com.example.ui.theme.MyApplicationTheme
-// Assuming PpfViewModel is in com.example.ui or com.example, adjust import if needed
-import com.example.ui.PpfViewModel 
 
 class MainActivity : ComponentActivity() {
 
-    // Safely fetch your real ViewModel so it is never null
-    private val viewModel: PpfViewModel by viewModels()
-
-    private fun calculatePPFCore(
-        contributions: Map<Int, List<Int>>, 
-        totalYears: Int, 
-        interestRate: Double
-    ): Triple<Double, Double, Double> {
+    // A pure background function to compute your compounding layout math matrix
+    private fun calculatePPFCore(contributions: Map<Int, List<Int>>): Triple<Double, Double, Double> {
         var currentBalance = 0.0
         var absoluteInvestment = 0.0
         var absoluteInterest = 0.0
-        val r = interestRate / 100.0
+        val defaultInterestRate = 7.1 / 100.0 // Standard default PPF baseline
+        val totalPlannedYears = 15 // Matches the standard 15-year baseline matrix
 
-        for (year in 1..totalYears) {
+        for (year in 1..totalPlannedYears) {
             val monthlyInvestments = contributions[year] ?: List(12) { 0 }
             var yearInvestment = 0.0
             var interestEarnedThisYear = 0.0
@@ -43,7 +37,7 @@ class MainActivity : ComponentActivity() {
                 val monthlyDeposit = monthlyInvestments[monthIndex].toDouble()
                 yearInvestment += monthlyDeposit
                 currentBalance += monthlyDeposit
-                interestEarnedThisYear += (currentBalance * (r / 12.0))
+                interestEarnedThisYear += (currentBalance * (defaultInterestRate / 12.0))
             }
 
             currentBalance += interestEarnedThisYear
@@ -59,6 +53,9 @@ class MainActivity : ComponentActivity() {
         val sharedPref = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
         setContent {
+            // Using standard safe Compose inline initialization to clear type inferences
+            val ppfViewModel: PpfViewModel = viewModel()
+
             var selectedTheme by remember {
                 mutableStateOf(sharedPref.getString("selected_theme", "System") ?: "System")
             }
@@ -73,6 +70,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(mapOf(1 to List(12) { 0 }))
             }
 
+            // Calculation outcome tracking states
             var maturityAmount by remember { mutableStateOf(0.0) }
             var totalInvestment by remember { mutableStateOf(0.0) }
             var totalInterest by remember { mutableStateOf(0.0) }
@@ -80,7 +78,7 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme(darkTheme = darkTheme) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     PpfCalculatorScreen(
-                        viewModel = viewModel, // Successfully passes the real, initialized non-null ViewModel instance
+                        viewModel = ppfViewModel,
                         selectedTheme = selectedTheme,
                         onThemeSelected = { newTheme ->
                             selectedTheme = newTheme
@@ -94,8 +92,9 @@ class MainActivity : ComponentActivity() {
                             currentMap[yearIndex] = currentYearList
                             multiYearContributions.value = currentMap
                         },
-                        onCalculateClicked = { finalMap, periodYears, currentRate ->
-                            val (mat, inv, int) = calculatePPFCore(finalMap, periodYears, currentRate)
+                        // Matches 'Function1' signature perfectly: accepts ONLY the map parameter
+                        onCalculateClicked = { finalMap ->
+                            val (mat, inv, int) = calculatePPFCore(finalMap)
                             maturityAmount = mat
                             totalInvestment = inv
                             totalInterest = int
