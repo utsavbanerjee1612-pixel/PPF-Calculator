@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.ppfcalculator.vqrztp"
     minSdk = 24
     targetSdk = 36
-    versionCode = 22
-    versionName = "1.7.12"
+    versionCode = 23
+    versionName = "1.7.14"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
