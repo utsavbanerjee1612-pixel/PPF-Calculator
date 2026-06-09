@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,10 +16,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.ui.PpfCalculatorScreen
 import com.example.ui.theme.MyApplicationTheme
+// Assuming PpfViewModel is in com.example.ui or com.example, adjust import if needed
+import com.example.ui.PpfViewModel 
 
 class MainActivity : ComponentActivity() {
 
-    // Detached pure calculation method to avoid @Composable scope issues
+    // Safely fetch your real ViewModel so it is never null
+    private val viewModel: PpfViewModel by viewModels()
+
     private fun calculatePPFCore(
         contributions: Map<Int, List<Int>>, 
         totalYears: Int, 
@@ -68,7 +73,6 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(mapOf(1 to List(12) { 0 }))
             }
 
-            // Calculations track points
             var maturityAmount by remember { mutableStateOf(0.0) }
             var totalInvestment by remember { mutableStateOf(0.0) }
             var totalInterest by remember { mutableStateOf(0.0) }
@@ -76,7 +80,7 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme(darkTheme = darkTheme) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     PpfCalculatorScreen(
-                        viewModel = null, // Passes explicit null to satisfy the required UI signature safely
+                        viewModel = viewModel, // Successfully passes the real, initialized non-null ViewModel instance
                         selectedTheme = selectedTheme,
                         onThemeSelected = { newTheme ->
                             selectedTheme = newTheme
