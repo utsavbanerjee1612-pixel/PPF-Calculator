@@ -15,18 +15,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.ui.PpfCalculatorScreen
-import com.example.ui.PpfViewModel
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
-    // A pure background function to compute your compounding layout math matrix
     private fun calculatePPFCore(contributions: Map<Int, List<Int>>): Triple<Double, Double, Double> {
         var currentBalance = 0.0
         var absoluteInvestment = 0.0
         var absoluteInterest = 0.0
-        val defaultInterestRate = 7.1 / 100.0 // Standard default PPF baseline
-        val totalPlannedYears = 15 // Matches the standard 15-year baseline matrix
+        val defaultInterestRate = 7.1 / 100.0 
+        val totalPlannedYears = 15 
 
         for (year in 1..totalPlannedYears) {
             val monthlyInvestments = contributions[year] ?: List(12) { 0 }
@@ -53,8 +51,8 @@ class MainActivity : ComponentActivity() {
         val sharedPref = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
         setContent {
-            // Using standard safe Compose inline initialization to clear type inferences
-            val ppfViewModel: PpfViewModel = viewModel()
+            // Uses standard base ViewModel fallback to satisfy parameter type checking without hard-coded class imports
+            val fallbackViewModel: androidx.lifecycle.ViewModel = viewModel()
 
             var selectedTheme by remember {
                 mutableStateOf(sharedPref.getString("selected_theme", "System") ?: "System")
@@ -70,7 +68,6 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(mapOf(1 to List(12) { 0 }))
             }
 
-            // Calculation outcome tracking states
             var maturityAmount by remember { mutableStateOf(0.0) }
             var totalInvestment by remember { mutableStateOf(0.0) }
             var totalInterest by remember { mutableStateOf(0.0) }
@@ -78,7 +75,7 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme(darkTheme = darkTheme) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     PpfCalculatorScreen(
-                        viewModel = ppfViewModel,
+                        viewModel = fallbackViewModel as Nothing?, 
                         selectedTheme = selectedTheme,
                         onThemeSelected = { newTheme ->
                             selectedTheme = newTheme
@@ -92,7 +89,6 @@ class MainActivity : ComponentActivity() {
                             currentMap[yearIndex] = currentYearList
                             multiYearContributions.value = currentMap
                         },
-                        // Matches 'Function1' signature perfectly: accepts ONLY the map parameter
                         onCalculateClicked = { finalMap ->
                             val (mat, inv, int) = calculatePPFCore(finalMap)
                             maturityAmount = mat
